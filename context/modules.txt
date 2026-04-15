@@ -1,0 +1,11 @@
+That's the full Rovexa Team OS — 10 modules, all visible, sharp corporate feel. Here's what's in it:
+Top bar — branded in Rovexa blue, every module in the sidebar, your profile with online status, notification bell with live dot.
+5 stat cards — open tasks, active clients, monthly revenue, hours logged this week, overdue items — all with color-coded priority strips.
+Tasks — assigned to team members with initials, tagged by vertical, overdue flagged in red.
+Notifications & pings — live activity feed, color-coded by urgency.
+Time tracker — per-person hours logged today by task.
+CRM pipeline — 4 clients with stage pills and estimated monthly value.
+Team performance — progress bars per member with task completion %.
+Revenue & billing — invoice tracker with paid/pending/overdue status and monthly total.
+Project boards — full kanban across verticals: To Do → In Progress → Review → Done.
+Team messages — channel-based, sender-tagged, real conversation feel.

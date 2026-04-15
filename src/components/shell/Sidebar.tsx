@@ -1,6 +1,5 @@
 import {
   BellDot,
-  BriefcaseBusiness,
   Building2,
   Clock3,
   FolderKanban,
@@ -16,7 +15,6 @@ import { NavLink } from 'react-router-dom';
 
 import { SIDEBAR_NAV } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { useWorkspace } from '@/hooks/use-workspace';
 
 const iconMap = [
   LayoutDashboard,
@@ -32,12 +30,12 @@ const iconMap = [
 ];
 
 export function Sidebar() {
-  const { members } = useWorkspace();
-
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__logo">rv</div>
+        <div className="sidebar__logo" aria-hidden="true">
+          <img src="/rovexa-icon.svg" alt="" />
+        </div>
         <div>
           <strong>rovexa</strong>
           <p>Team OS</p>
@@ -62,27 +60,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="sidebar__team">
-        <div className="sidebar__section-heading">
-          <span>Members</span>
-        </div>
-        <div className="sidebar__teammates">
-          {members.slice(0, 4).map((member) => (
-            <div key={member.id} className="sidebar__teammate">
-              <span style={{ background: member.avatarColor }} />
-              <div>
-                <strong>{member.name}</strong>
-                <small>{member.title}</small>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="sidebar__footer">
-          <BriefcaseBusiness size={18} />
-          <span>Every module connected.</span>
-        </div>
-      </div>
     </aside>
   );
 }

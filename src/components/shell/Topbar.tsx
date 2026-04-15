@@ -1,4 +1,4 @@
-import { Bell, Plus, Search, Sparkles } from 'lucide-react';
+import { Bell, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { Avatar } from '@/components/ui/Avatar';
@@ -10,7 +10,12 @@ export function Topbar() {
   const navigate = useNavigate();
   const { member } = useAuth();
   const { notifications } = useWorkspace();
-  const { commandPaletteOpen, setCommandPaletteOpen } = useUiStore();
+  const {
+    commandPaletteOpen,
+    setCommandPaletteOpen,
+    sidebarHidden,
+    setSidebarHidden,
+  } = useUiStore();
 
   const unreadNotifications = notifications.filter(
     (notification) => !notification.readBy.includes(member?.uid ?? ''),
@@ -18,15 +23,27 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <button
-        type="button"
-        className="topbar__search"
-        onClick={() => setCommandPaletteOpen(!commandPaletteOpen)}
-      >
-        <Search size={16} />
-        <span>Search everything</span>
-        <kbd>⌘K</kbd>
-      </button>
+      <div className="topbar__left">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => setSidebarHidden(!sidebarHidden)}
+          aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+          title={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+        >
+          {sidebarHidden ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+
+        <button
+          type="button"
+          className="topbar__search"
+          onClick={() => setCommandPaletteOpen(!commandPaletteOpen)}
+        >
+          <Search size={16} />
+          <span>Search everything</span>
+          <kbd>⌘K</kbd>
+        </button>
+      </div>
 
       <div className="topbar__actions">
         <button
