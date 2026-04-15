@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function inviteEmailOwner(email) {
+      return signedIn() &&
+        request.auth.token.email != null &&
+        request.auth.token.email == email;
+    }
+
+    // Allow invite-token lookup across workspaces for pending invites.
+    // This supports /login?invite=<token> before the user is a workspace member.
+    match /{path=**}/invites/{inviteId} {
+      allow read: if resource.data.status == 'pending' || inviteEmailOwner(resource.data.email);
+    }
+
+    function memberDoc(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    function workspaceMember(workspaceId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    function roleIn(workspaceId, roles) {
+      return workspaceMember(workspaceId) && memberDoc(workspaceId).data.role in roles;
+    }
+
+    function founder(workspaceId) {
+      return roleIn(workspaceId, ['founder']);
+    }
+
+    function leadership(workspaceId) {
+      return roleIn(workspaceId, ['founder', 'manager']);
+    }
+
+    match /public/{docId} {
+      allow read: if true;
+      allow create, update, delete: if signedIn();
+    }
+
+    match /workspaces/{workspaceId} {
+      allow list: if request.query.limit != null && request.query.limit <= 1;
+      allow get: if workspaceMember(workspaceId);
+      allow create: if signedIn();
+      allow update, delete: if founder(workspaceId);
+
+      match /members/{memberId} {
+        allow read: if workspaceMember(workspaceId) ||
+          (signedIn() && resource.data.uid == request.auth.uid);
+        allow create: if signedIn() &&
+          request.auth.uid == memberId &&
+          request.resource.data.uid == request.auth.uid &&
+          (request.auth.token.email == null ||
+            request.resource.data.email == request.auth.token.email);
+        allow update: if founder(workspaceId) || request.auth.uid == memberId;
+        allow delete: if founder(workspaceId);
+      }
+
+      match /invites/{inviteId} {
+        allow read: if founder(workspaceId) ||
+          resource.data.status == 'pending' ||
+          inviteEmailOwner(resource.data.email);
+        allow create, delete: if founder(workspaceId);
+        allow update: if founder(workspaceId) || (
+          inviteEmailOwner(resource.data.email) &&
+          resource.data.status == 'pending' &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'acceptedAt']) &&
+          request.resource.data.status == 'accepted'
+        );
+      }
+
+      match /clients/{clientId} {
+        allow read: if workspaceMember(workspaceId);
+        allow write: if leadership(workspaceId);
+      }
+
+      match /projects/{projectId} {
+        allow read: if workspaceMember(workspaceId);
+        allow write: if leadership(workspaceId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create: if leadership(workspaceId);
+        allow update: if leadership(workspaceId) ||
+          (workspaceMember(workspaceId) && request.auth.uid in resource.data.assigneeIds);
+        allow delete: if leadership(workspaceId);
+      }
+
+      match /notes/{noteId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create, update: if workspaceMember(workspaceId) &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow delete: if leadership(workspaceId);
+      }
+
+      match /meetings/{meetingId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create, update: if workspaceMember(workspaceId) &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow delete: if leadership(workspaceId);
+      }
+
+      match /timeEntries/{timeEntryId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create: if workspaceMember(workspaceId) &&
+          request.resource.data.memberId == request.auth.uid;
+        allow update, delete: if leadership(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.memberId == request.auth.uid);
+      }
+
+      match /invoices/{invoiceId} {
+        allow read: if workspaceMember(workspaceId);
+        allow write: if leadership(workspaceId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create: if workspaceMember(workspaceId);
+        allow update: if workspaceMember(workspaceId);
+        allow delete: if leadership(workspaceId);
+      }
+
+      match /activity/{activityId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create: if workspaceMember(workspaceId);
+        allow delete: if leadership(workspaceId);
+      }
+    }
+  }
+}

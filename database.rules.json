@@ -1,0 +1,55 @@
+{
+  "rules": {
+    "workspaces": {
+      "$workspaceId": {
+        ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+        "members": {
+          "$uid": {
+            ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "channels": {
+          "$channelId": {
+            ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+            ".write": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()"
+          }
+        },
+        "messages": {
+          "$channelId": {
+            "$messageId": {
+              ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+              ".write": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists() && newData.child('senderId').val() === auth.uid"
+            }
+          }
+        },
+        "presence": {
+          "$uid": {
+            ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "typing": {
+          "$channelId": {
+            "$uid": {
+              ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+              ".write": "auth != null && auth.uid === $uid"
+            }
+          }
+        },
+        "unread": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            "$channelId": {
+              ".write": "auth != null && (auth.uid === $uid || root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists())"
+            }
+          }
+        },
+        "system": {
+          ".read": false,
+          ".write": false
+        }
+      }
+    }
+  }
+}

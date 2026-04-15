@@ -1,0 +1,9 @@
+.env
+dist
+node_modules
+.scaffold
+.firebase
+.vercel
+test-results
+playwright-report
+.DS_Store

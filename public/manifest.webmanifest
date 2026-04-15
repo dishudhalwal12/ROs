@@ -1,0 +1,17 @@
+{
+  "name": "Rovexa Team OS",
+  "short_name": "Rovexa OS",
+  "description": "Internal CRM, project, chat, time, and billing operating system for teams.",
+  "theme_color": "#2f4bde",
+  "background_color": "#111111",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/rovexa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
