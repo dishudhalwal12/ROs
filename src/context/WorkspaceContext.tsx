@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   type PropsWithChildren,
@@ -9,6 +10,7 @@ import {
   addDoc,
   arrayUnion,
   collection,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -35,6 +37,7 @@ import {
 } from 'firebase/storage';
 
 import { useAuth } from '@/hooks/use-auth';
+import { fileToAvatarDataUrl } from '@/lib/avatar-data-url';
 import { db, isRealtimeConfigured, realtimeDb, storage } from '@/lib/firebase';
 import {
   hasEveryoneMention,
@@ -42,6 +45,10 @@ import {
 } from '@/lib/chat-notifications';
 import { buildSearchItems } from '@/lib/domain';
 import { nowIso, uniqueStrings } from '@/lib/utils';
+import {
+  getStatusDurationMinutes,
+  resolveStatusTransition,
+} from '@/lib/work-status';
 import type {
   ActivityItem,
   AppNotification,
@@ -49,6 +56,7 @@ import type {
   ChatMessage,
   Client,
   Invite,
+  LiveStatusRecord,
   MeetingRecord,
   Member,
   NoteAttachment,
@@ -58,10 +66,12 @@ import type {
   Project,
   Role,
   SearchItem,
+  StatusSession,
   Task,
   TaskStatus,
   TimeEntry,
   Invoice,
+  WorkMode,
   Workspace,
   WorkspaceCollections,
 } from '@/types/models';
@@ -125,6 +135,9 @@ interface CreateMeetingPayload {
 }
 
 interface CreateTimeEntryPayload {
+  mode?: WorkMode;
+  source?: 'manual' | 'tracker';
+  skipActivity?: boolean;
   description: string;
   taskId?: string;
   projectId?: string;
@@ -157,12 +170,23 @@ interface UpdateWorkspacePayload {
   defaultTheme: Workspace['defaultTheme'];
 }
 
+interface UpdateMyProfilePayload {
+  name: string;
+  avatarUrl?: string | null;
+}
+
+interface SwitchWorkModePayload {
+  mode: WorkMode;
+  label: string;
+}
+
 interface WorkspaceContextValue extends WorkspaceCollections {
   loading: boolean;
   searchItems: SearchItem[];
   channels: ChatChannel[];
   unreadByChannel: Record<string, number>;
   presence: Record<string, PresenceRecord>;
+  liveStatuses: Record<string, LiveStatusRecord>;
   typingByChannel: Record<string, string[]>;
   realtimeEnabled: boolean;
   createInvite: (email: string, role: Role) => Promise<Invite>;
@@ -187,6 +211,8 @@ interface WorkspaceContextValue extends WorkspaceCollections {
   updateMyNotificationPreferences: (
     input: Member['notificationPreferences'],
   ) => Promise<void>;
+  updateMyProfile: (payload: UpdateMyProfilePayload) => Promise<void>;
+  uploadProfileAvatar: (file: File) => Promise<string>;
   uploadAttachment: (payload: UploadAttachmentPayload) => Promise<NoteAttachment>;
   createDirectChannel: (targetMemberId: string) => Promise<string>;
   createTeamChannel: (name: string) => Promise<string>;
@@ -196,6 +222,8 @@ interface WorkspaceContextValue extends WorkspaceCollections {
   ) => () => void;
   sendMessage: (channelId: string, body: string) => Promise<void>;
   markChannelRead: (channelId: string) => Promise<void>;
+  switchWorkMode: (payload: SwitchWorkModePayload) => Promise<void>;
+  updateActiveWorkLabel: (label: string) => Promise<void>;
   setTypingState: (channelId: string, active: boolean) => Promise<void>;
 }
 
@@ -211,6 +239,7 @@ const emptyCollections: WorkspaceCollections = {
   notes: [],
   meetings: [],
   timeEntries: [],
+  statusSessions: [],
   invoices: [],
   notifications: [],
   activity: [],
@@ -218,25 +247,32 @@ const emptyCollections: WorkspaceCollections = {
 
 export function WorkspaceProvider({ children }: PropsWithChildren) {
   const { member, user, workspaceId } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [collections, setCollections] = useState<WorkspaceCollections>(emptyCollections);
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [presence, setPresence] = useState<Record<string, PresenceRecord>>({});
+  const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatusRecord>>({});
   const [typingByChannel, setTypingByChannel] = useState<Record<string, string[]>>({});
   const [unreadByChannel, setUnreadByChannel] = useState<Record<string, number>>({});
 
+  function buildStatusSessions(entries: TimeEntry[]) {
+    return entries.map((entry) => ({
+      id: entry.id,
+      memberId: entry.memberId,
+      mode: entry.mode ?? 'work',
+      label: entry.description,
+      startedAt: entry.startedAt,
+      endedAt: entry.endedAt,
+      durationMinutes: entry.durationMinutes,
+      createdAt: entry.createdAt,
+    })) as StatusSession[];
+  }
+
   useEffect(() => {
     if (!workspaceId) {
-      setCollections(emptyCollections);
-      setChannels([]);
-      setPresence({});
-      setTypingByChannel({});
-      setUnreadByChannel({});
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
     const unsubscribers = [
       onSnapshot(doc(db, 'workspaces', workspaceId), (snapshot) => {
         setCollections((current) => ({
@@ -249,12 +285,20 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       onSnapshot(
         query(collection(db, 'workspaces', workspaceId, 'members'), orderBy('joinedAt', 'asc')),
         (snapshot) => {
+          const nextMembers = snapshot.docs.map(
+            (memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() }) as Member,
+          );
           setCollections((current) => ({
             ...current,
-            members: snapshot.docs.map(
-              (memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() }) as Member,
-            ),
+            members: nextMembers,
           }));
+          setLiveStatuses(
+            Object.fromEntries(
+              nextMembers
+                .filter((teamMember) => teamMember.currentStatus)
+                .map((teamMember) => [teamMember.uid, teamMember.currentStatus as LiveStatusRecord]),
+            ),
+          );
         },
       ),
       onSnapshot(
@@ -328,11 +372,13 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
           orderBy('startedAt', 'desc'),
         ),
         (snapshot) => {
+          const nextTimeEntries = snapshot.docs.map(
+            (timeDoc) => ({ id: timeDoc.id, ...timeDoc.data() }) as TimeEntry,
+          );
           setCollections((current) => ({
             ...current,
-            timeEntries: snapshot.docs.map(
-              (timeDoc) => ({ id: timeDoc.id, ...timeDoc.data() }) as TimeEntry,
-            ),
+            timeEntries: nextTimeEntries,
+            statusSessions: buildStatusSessions(nextTimeEntries),
           }));
         },
       ),
@@ -376,7 +422,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
               (activityDoc) => ({ id: activityDoc.id, ...activityDoc.data() }) as ActivityItem,
             ),
           }));
-          setLoading(false);
+          setLoadedWorkspaceId(workspaceId);
         },
       ),
     ];
@@ -478,9 +524,17 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     };
   }, [member, user, workspaceId]);
 
+  const resolvedCollections = workspaceId ? collections : emptyCollections;
+  const resolvedChannels = workspaceId ? channels : [];
+  const resolvedPresence = workspaceId ? presence : {};
+  const resolvedLiveStatuses = workspaceId ? liveStatuses : {};
+  const resolvedTypingByChannel = workspaceId ? typingByChannel : {};
+  const resolvedUnreadByChannel = workspaceId ? unreadByChannel : {};
+  const loading = workspaceId ? loadedWorkspaceId !== workspaceId : false;
+
   const searchItems = useMemo(
-    () => buildSearchItems(collections),
-    [collections.clients, collections.members, collections.projects, collections.tasks],
+    () => buildSearchItems(resolvedCollections),
+    [resolvedCollections],
   );
 
   async function logActivity(input: Omit<ActivityItem, 'id'>) {
@@ -947,24 +1001,56 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
   async function createTimeEntry(payload: CreateTimeEntryPayload) {
     if (!workspaceId || !user) throw new Error('Workspace unavailable.');
     const createdAt = nowIso();
+    const normalizedMode = payload.mode ?? 'work';
+    const {
+      source,
+      skipActivity,
+      description,
+      taskId,
+      projectId,
+      clientId,
+      startedAt,
+      endedAt,
+      durationMinutes,
+    } = payload;
     const timeDoc = await addDoc(collection(db, 'workspaces', workspaceId, 'timeEntries'), {
-      ...payload,
+      description,
+      taskId,
+      projectId,
+      clientId,
+      startedAt,
+      endedAt,
+      durationMinutes,
+      mode: normalizedMode,
+      source: source ?? 'manual',
       memberId: user.uid,
       createdAt,
     } satisfies Omit<TimeEntry, 'id'>);
 
     const timeEntry = {
       id: timeDoc.id,
-      ...payload,
+      description,
+      taskId,
+      projectId,
+      clientId,
+      startedAt,
+      endedAt,
+      durationMinutes,
+      mode: normalizedMode,
+      source: source ?? 'manual',
       memberId: user.uid,
       createdAt,
     } as TimeEntry;
+
+    if (skipActivity) {
+      return timeEntry;
+    }
 
     await logActivity({
       actorId: user.uid,
       actorName: member?.name ?? user.email ?? 'Workspace',
       type: 'time_logged',
-      title: 'Time logged',
+      title: normalizedMode === 'rest' ? 'Rest logged' : 'Time logged',
       body: payload.description,
       entityType: payload.projectId ? 'project' : 'task',
       entityId: payload.projectId ?? payload.taskId,
@@ -973,7 +1059,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     });
 
     await pushWorkspaceWideNotification({
-      title: 'Time logged',
+      title: normalizedMode === 'rest' ? 'Rest session logged' : 'Time logged',
       body: payload.description,
       kind: 'system',
       actionRoute: payload.projectId
@@ -1090,6 +1176,115 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     if (!workspaceId || !user) throw new Error('Workspace unavailable.');
     await updateDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid), {
       notificationPreferences: input,
+    });
+  }
+
+  async function updateMyProfile(payload: UpdateMyProfilePayload) {
+    if (!workspaceId || !user) throw new Error('Workspace unavailable.');
+
+    const trimmedName = payload.name.trim();
+    if (!trimmedName) {
+      throw new Error('Name is required.');
+    }
+
+    const memberUpdates: {
+      name: string;
+      avatarUrl?: string | ReturnType<typeof deleteField>;
+    } = {
+      name: trimmedName,
+    };
+
+    if ('avatarUrl' in payload) {
+      memberUpdates.avatarUrl = payload.avatarUrl || deleteField();
+    }
+
+    await updateDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid), memberUpdates);
+
+    if (isRealtimeConfigured && realtimeDb) {
+      const realtimeMemberUpdates: Record<string, string> = {
+        name: trimmedName,
+      };
+
+      await Promise.all([
+        update(ref(realtimeDb, `workspaces/${workspaceId}/members/${user.uid}`), realtimeMemberUpdates),
+        update(ref(realtimeDb, `workspaces/${workspaceId}/presence/${user.uid}`), {
+          name: trimmedName,
+        }),
+      ]);
+    }
+  }
+
+  async function uploadProfileAvatar(file: File) {
+    if (!user) throw new Error('Please sign in before updating your display picture.');
+    return fileToAvatarDataUrl(file);
+  }
+
+  async function finalizeStatusSession(status: LiveStatusRecord, endedAt: string) {
+    const durationMinutes = getStatusDurationMinutes(status.startedAt, endedAt);
+
+    await createTimeEntry({
+      mode: status.mode,
+      source: 'tracker',
+      skipActivity: true,
+      description:
+        status.label || (status.mode === 'rest' ? 'Taking a break' : 'Focused work block'),
+      startedAt: status.startedAt,
+      endedAt,
+      durationMinutes,
+    });
+  }
+
+  async function switchWorkMode(payload: SwitchWorkModePayload) {
+    if (!workspaceId || !user) {
+      throw new Error('Workspace unavailable.');
+    }
+
+    const current = liveStatuses[user.uid];
+    const { nextLabel, shouldFinalizeCurrent, shouldUpdateLabel } = resolveStatusTransition(
+      current ?? null,
+      payload.mode,
+      payload.label,
+    );
+    const transitionAt = nowIso();
+
+    if (current) {
+      if (!shouldFinalizeCurrent) {
+        if (shouldUpdateLabel) {
+          await updateActiveWorkLabel(nextLabel);
+        }
+        return;
+      }
+
+      await finalizeStatusSession(current, transitionAt);
+    }
+
+    await updateDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid), {
+      currentStatus: {
+        memberId: user.uid,
+        mode: payload.mode,
+        label: nextLabel,
+        startedAt: transitionAt,
+        updatedAt: transitionAt,
+      } satisfies LiveStatusRecord,
+    });
+  }
+
+  async function updateActiveWorkLabel(label: string) {
+    if (!workspaceId || !user) {
+      throw new Error('Workspace unavailable.');
+    }
+
+    const current = liveStatuses[user.uid];
+    if (!current) return;
+
+    const { nextLabel } = resolveStatusTransition(current, current.mode, label);
+
+    await updateDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid), {
+      currentStatus: {
+        ...current,
+        label: nextLabel,
+        updatedAt: nowIso(),
+      } satisfies LiveStatusRecord,
     });
   }
 
@@ -1277,52 +1472,46 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     await remove(typingRef);
   }
 
-  const value = useMemo(
-    () => ({
-      ...collections,
-      loading,
-      searchItems,
-      channels,
-      unreadByChannel,
-      presence,
-      typingByChannel,
-      realtimeEnabled: isRealtimeConfigured,
-      createInvite,
-      revokeInvite,
-      createClient,
-      updateClientStage,
-      convertClientToProject,
-      createProject,
-      createTask,
-      updateTaskStatus,
-      createNote,
-      createMeeting,
-      createTimeEntry,
-      createInvoice,
-      updateInvoiceStatus,
-      markNotificationRead,
-      updateWorkspaceProfile,
-      updateWorkspaceNotifications,
-      updateMemberRole,
-      updateMyNotificationPreferences,
-      uploadAttachment,
-      createDirectChannel,
-      createTeamChannel,
-      subscribeToMessages,
-      sendMessage,
-      markChannelRead,
-      setTypingState,
-    }),
-    [
-      channels,
-      collections,
-      loading,
-      presence,
-      searchItems,
-      typingByChannel,
-      unreadByChannel,
-    ],
-  );
+  const value: WorkspaceContextValue = {
+    ...resolvedCollections,
+    loading,
+    searchItems,
+    channels: resolvedChannels,
+    unreadByChannel: resolvedUnreadByChannel,
+    presence: resolvedPresence,
+    liveStatuses: resolvedLiveStatuses,
+    typingByChannel: resolvedTypingByChannel,
+    realtimeEnabled: isRealtimeConfigured,
+    createInvite,
+    revokeInvite,
+    createClient,
+    updateClientStage,
+    convertClientToProject,
+    createProject,
+    createTask,
+    updateTaskStatus,
+    createNote,
+    createMeeting,
+    createTimeEntry,
+    createInvoice,
+    updateInvoiceStatus,
+    markNotificationRead,
+    updateWorkspaceProfile,
+    updateWorkspaceNotifications,
+    updateMemberRole,
+    updateMyNotificationPreferences,
+    updateMyProfile,
+    uploadProfileAvatar,
+    uploadAttachment,
+    createDirectChannel,
+    createTeamChannel,
+    subscribeToMessages,
+    sendMessage,
+    markChannelRead,
+    switchWorkMode,
+    updateActiveWorkLabel,
+    setTypingState,
+  };
 
   return (
     <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>

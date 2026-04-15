@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   type PropsWithChildren,
@@ -20,6 +21,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
   query,
   where,
   writeBatch,
@@ -223,6 +225,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return unsubscribe;
   }, [refreshWorkspaceAvailability, resolveMembership]);
 
+  useEffect(() => {
+    if (!user || !workspaceId) return;
+
+    return onSnapshot(
+      doc(db, 'workspaces', workspaceId, 'members', user.uid),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setMember(null);
+          setWorkspaceId(null);
+          return;
+        }
+
+        setMember({ id: snapshot.id, ...(snapshot.data() as Omit<Member, 'id'>) });
+      },
+      () => {
+        setMember(null);
+      },
+    );
+  }, [user, workspaceId]);
+
   const signInWithPassword = useCallback(
     async (email: string, password: string) => {
       try {
@@ -274,7 +296,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             try {
               const credentials = await signInWithEmailAndPassword(auth, normalizedEmail, password);
               founder = credentials.user;
-            } catch (signInError) {
+            } catch {
               throw new Error(
                 'This email already has a Firebase account. Sign in with that password, then create the workspace again.',
               );
@@ -348,7 +370,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         id: notificationRef.id,
         userId: founder.uid,
         title: 'Workspace ready',
-        body: 'Rovexa Team OS is live. Start by inviting your team and creating your first client.',
+        body: 'Rovexa OS is live. Start by inviting your team and creating your first client.',
         kind: 'system',
         readBy: [],
         actionRoute: '/settings',
@@ -391,7 +413,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           id: 'welcome',
           channelId: 'general',
           senderId: founder.uid,
-          body: 'Welcome to Rovexa Team OS.',
+          body: 'Welcome to Rovexa OS.',
           createdAt,
         });
       }

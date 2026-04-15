@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Bell, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { ProfileEditorModal } from '@/components/shell/ProfileEditorModal';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
@@ -10,6 +12,7 @@ export function Topbar() {
   const navigate = useNavigate();
   const { member } = useAuth();
   const { notifications } = useWorkspace();
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const {
     commandPaletteOpen,
     setCommandPaletteOpen,
@@ -29,7 +32,7 @@ export function Topbar() {
           className="icon-button"
           onClick={() => setSidebarHidden(!sidebarHidden)}
           aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
-          title={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+          title={sidebarHidden ? 'Show sidebar (B)' : 'Hide sidebar (B)'}
         >
           {sidebarHidden ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
@@ -73,14 +76,20 @@ export function Topbar() {
             <span className="notification-dot">{unreadNotifications}</span>
           ) : null}
         </button>
-        <div className="topbar__profile">
+        <button
+          type="button"
+          className="topbar__profile"
+          onClick={() => setProfileEditorOpen(true)}
+        >
           <Avatar member={member} />
           <div>
             <strong>{member?.name ?? 'Workspace'}</strong>
             <small>{member?.role ?? 'Signing in...'}</small>
           </div>
-        </div>
+        </button>
       </div>
+
+      <ProfileEditorModal open={profileEditorOpen} onClose={() => setProfileEditorOpen(false)} />
     </header>
   );
 }

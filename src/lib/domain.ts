@@ -60,6 +60,7 @@ export function filterTasks(tasks: Task[], filters: TaskFilterState) {
 export function calculateWeeklyHours(entries: TimeEntry[], memberId?: string) {
   return entries
     .filter((entry) => (!memberId ? true : entry.memberId === memberId))
+    .filter((entry) => (entry.mode ?? 'work') === 'work')
     .filter((entry) => isWithinCurrentWeek(entry.startedAt))
     .reduce((sum, entry) => sum + entry.durationMinutes, 0);
 }

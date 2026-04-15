@@ -1,4 +1,5 @@
 export type ThemeMode = 'light' | 'dark';
+export type WorkMode = 'work' | 'rest';
 
 export type Role = 'founder' | 'manager' | 'member';
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -38,6 +39,8 @@ export interface Member {
   uid: string;
   email: string;
   name: string;
+  avatarUrl?: string;
+  currentStatus?: LiveStatusRecord | null;
   title: string;
   role: Role;
   joinedAt: string;
@@ -152,6 +155,8 @@ export interface MeetingRecord {
 export interface TimeEntry {
   id: string;
   memberId: string;
+  mode?: WorkMode;
+  source?: 'manual' | 'tracker';
   taskId?: string;
   projectId?: string;
   clientId?: string;
@@ -244,6 +249,25 @@ export interface PresenceRecord {
   lastSeenAt: string;
 }
 
+export interface LiveStatusRecord {
+  memberId: string;
+  mode: WorkMode;
+  label: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
+export interface StatusSession {
+  id: string;
+  memberId: string;
+  mode: WorkMode;
+  label: string;
+  startedAt: string;
+  endedAt: string;
+  durationMinutes: number;
+  createdAt: string;
+}
+
 export interface SearchItem {
   id: string;
   type: 'task' | 'client' | 'project' | 'member';
@@ -276,6 +300,7 @@ export interface WorkspaceCollections {
   notes: NoteRecord[];
   meetings: MeetingRecord[];
   timeEntries: TimeEntry[];
+  statusSessions: StatusSession[];
   invoices: Invoice[];
   notifications: AppNotification[];
   activity: ActivityItem[];

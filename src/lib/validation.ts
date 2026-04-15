@@ -103,8 +103,8 @@ export const timeEntrySchema = z.object({
   taskId: z.string().optional(),
   projectId: z.string().optional(),
   clientId: z.string().optional(),
-  startedAt: z.string().min(1),
-  endedAt: z.string().min(1),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
   durationMinutes: z.coerce.number().min(1),
 });
 

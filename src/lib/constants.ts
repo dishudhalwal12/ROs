@@ -7,7 +7,7 @@ import type {
   TaskStatus,
 } from '@/types/models';
 
-export const APP_NAME = 'Rovexa Team OS';
+export const APP_NAME = 'Rovexa OS';
 export const DEFAULT_WORKSPACE_NAME = 'Rovexa HQ';
 export const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 

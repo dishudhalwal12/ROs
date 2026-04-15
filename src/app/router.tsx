@@ -19,7 +19,7 @@ function ProtectedApp() {
   const { loading, user, workspaceId } = useAuth();
 
   if (loading) {
-    return <div className="app-loading">Loading Rovexa Team OS...</div>;
+    return <div className="app-loading">Loading Rovexa OS...</div>;
   }
 
   if (!user || !workspaceId) {
@@ -37,7 +37,7 @@ function GuestOnly() {
   const { loading, user, workspaceId } = useAuth();
 
   if (loading) {
-    return <div className="app-loading">Loading Rovexa Team OS...</div>;
+    return <div className="app-loading">Loading Rovexa OS...</div>;
   }
 
   if (user && workspaceId) {

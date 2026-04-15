@@ -9,6 +9,8 @@ interface StatCardProps {
   icon: LucideIcon;
   tone?: 'violet' | 'peach' | 'blue' | 'gold' | 'mint';
   className?: string;
+  onTitleClick?: () => void;
+  titlePressed?: boolean;
 }
 
 export function StatCard({
@@ -18,6 +20,8 @@ export function StatCard({
   icon: Icon,
   tone = 'violet',
   className,
+  onTitleClick,
+  titlePressed,
 }: StatCardProps) {
   return (
     <article className={cn(`stat-card stat-card--${tone}`, className)}>
@@ -25,7 +29,18 @@ export function StatCard({
         <Icon size={18} />
       </div>
       <div className="stat-card__meta">
-        <span>{title}</span>
+        {onTitleClick ? (
+          <button
+            type="button"
+            className="stat-card__title-button"
+            onClick={onTitleClick}
+            aria-pressed={titlePressed}
+          >
+            {title}
+          </button>
+        ) : (
+          <span>{title}</span>
+        )}
         <strong>{value}</strong>
         <small>{change}</small>
       </div>

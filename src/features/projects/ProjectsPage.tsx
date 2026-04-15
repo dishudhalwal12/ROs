@@ -2,9 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CalendarDays, FilePlus2, FolderKanban, FolderUp, MessageSquareShare, Plus, TimerReset } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  FilePlus2,
+  FolderKanban,
+  FolderUp,
+  Maximize2,
+  MessageSquareShare,
+  Minimize2,
+  Plus,
+  TimerReset,
+} from 'lucide-react';
 import { z } from 'zod';
 
+import { ProjectSpreadsheetStudio } from '@/features/projects/ProjectSpreadsheetStudio';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
@@ -15,7 +27,7 @@ import { formatMinutesAsHours, formatRelativeTime, formatShortDate } from '@/lib
 import { meetingSchema, noteSchema, projectSchema, taskSchema } from '@/lib/validation';
 import { PROJECT_STATUS_LABELS, TASK_STATUS_LABELS } from '@/lib/constants';
 
-const projectTabs = ['board', 'notes', 'meetings', 'files', 'time', 'channel'] as const;
+const projectTabs = ['board', 'sheet', 'notes', 'meetings', 'files', 'time', 'channel'] as const;
 
 type ComposeMode = 'project' | 'task' | 'note' | 'meeting' | 'document' | null;
 
@@ -49,6 +61,7 @@ export function ProjectsPage() {
     realtimeEnabled,
   } = useWorkspace();
   const [activeTab, setActiveTab] = useState<(typeof projectTabs)[number]>('board');
+  const [isSheetFullscreen, setIsSheetFullscreen] = useState(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
@@ -150,6 +163,12 @@ export function ProjectsPage() {
       meetingForm.setValue('attendees', [user.uid], { shouldDirty: false, shouldValidate: true });
     }
   }, [composeMode, meetingForm, projectForm, taskForm, user]);
+
+  useEffect(() => {
+    if (activeTab !== 'sheet' || !selectedProject) {
+      setIsSheetFullscreen(false);
+    }
+  }, [activeTab, selectedProject]);
 
   const selectedProjectMemberIds = projectForm.watch('memberIds');
   const selectedTaskAssigneeIds = taskForm.watch('assigneeIds');
@@ -255,6 +274,30 @@ export function ProjectsPage() {
           <p>Run delivery, notes, meetings, files, time, and project chat from one place.</p>
         </div>
         <div className="page-header__actions">
+          <button
+            type="button"
+            className={
+              selectedProject && activeTab === 'sheet'
+                ? 'toggle-button toggle-button--active'
+                : 'toggle-button'
+            }
+            onClick={() => {
+              if (!selectedProject) {
+                setComposeMode('project');
+                return;
+              }
+
+              setActiveTab((current) => (current === 'sheet' ? 'board' : 'sheet'));
+            }}
+            title={
+              selectedProject
+                ? 'Open or close Sheet studio'
+                : 'Create a project to open Sheet studio'
+            }
+          >
+            <BarChart3 size={16} />
+            {activeTab === 'sheet' ? 'Close sheet studio' : 'Sheet studio'}
+          </button>
           <button type="button" className="pill-button" onClick={() => setComposeMode('project')}>
             <Plus size={16} />
             New project
@@ -262,7 +305,13 @@ export function ProjectsPage() {
         </div>
       </section>
 
-      <div className="two-column-layout two-column-layout--wide-left">
+      <div
+        className={
+          activeTab === 'sheet' && isSheetFullscreen
+            ? 'two-column-layout two-column-layout--wide-left projects-layout--sheet-fullscreen'
+            : 'two-column-layout two-column-layout--wide-left'
+        }
+      >
         <SectionCard title="Project list" subtitle="Current accounts and delivery status">
           {projects.length === 0 ? (
             <EmptyState
@@ -308,6 +357,26 @@ export function ProjectsPage() {
             subtitle={selectedProject.summary}
             action={
               <div className="toggle-group">
+                <button
+                  type="button"
+                  className={activeTab === 'sheet' ? 'toggle-button toggle-button--active' : 'toggle-button'}
+                  onClick={() =>
+                    setActiveTab((current) => (current === 'sheet' ? 'board' : 'sheet'))
+                  }
+                >
+                  <BarChart3 size={16} />
+                  {activeTab === 'sheet' ? 'Close sheet studio' : 'Sheet studio'}
+                </button>
+                {activeTab === 'sheet' ? (
+                  <button
+                    type="button"
+                    className={isSheetFullscreen ? 'toggle-button toggle-button--active' : 'toggle-button'}
+                    onClick={() => setIsSheetFullscreen((current) => !current)}
+                  >
+                    {isSheetFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    {isSheetFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  </button>
+                ) : null}
                 <button type="button" className="secondary-button" onClick={() => setComposeMode('task')}>
                   <Plus size={16} />
                   Add task
@@ -359,6 +428,13 @@ export function ProjectsPage() {
                   </div>
                 ))}
               </div>
+            ) : null}
+
+            {activeTab === 'sheet' ? (
+              <ProjectSpreadsheetStudio
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+              />
             ) : null}
 
             {activeTab === 'notes' ? (

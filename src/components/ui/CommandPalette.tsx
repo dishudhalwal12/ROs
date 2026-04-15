@@ -3,7 +3,30 @@ import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useWorkspace } from '@/hooks/use-workspace';
+import { SIDEBAR_NAV } from '@/lib/constants';
 import { useUiStore } from '@/store/ui-store';
+
+type CommandPaletteEntry = {
+  id: string;
+  type: 'page' | 'task' | 'client' | 'project' | 'member';
+  title: string;
+  subtitle: string;
+  route: string;
+};
+
+function matchesQuery(title: string, subtitle: string, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const normalizedTitle = title.toLowerCase();
+  const normalizedSubtitle = subtitle.toLowerCase();
+  const combined = `${normalizedTitle} ${normalizedSubtitle}`;
+  if (combined.includes(normalizedQuery)) return true;
+
+  const titleWords = normalizedTitle.split(/[^a-z0-9]+/).filter(Boolean);
+  const acronym = titleWords.map((word) => word[0]).join('');
+  return acronym.startsWith(normalizedQuery);
+}
 
 export function CommandPalette() {
   const navigate = useNavigate();
@@ -12,20 +35,51 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
 
-  const items = useMemo(() => {
-    if (!deferredQuery) return searchItems.slice(0, 8);
+  const pageItems = useMemo<CommandPaletteEntry[]>(
+    () =>
+      SIDEBAR_NAV.map((entry) => ({
+        id: entry.to,
+        type: 'page',
+        title: entry.label,
+        subtitle: 'Jump to page',
+        route: entry.to,
+      })),
+    [],
+  );
 
-    return searchItems
-      .filter((item) => {
-        const target = `${item.title} ${item.subtitle}`.toLowerCase();
-        return target.includes(deferredQuery.toLowerCase());
-      })
-      .slice(0, 12);
-  }, [deferredQuery, searchItems]);
+  const items = useMemo<CommandPaletteEntry[]>(() => {
+    const entityItems: CommandPaletteEntry[] = searchItems;
+
+    if (!deferredQuery.trim()) {
+      return [...pageItems, ...entityItems].slice(0, 14);
+    }
+
+    const matchedPages = pageItems.filter((item) =>
+      matchesQuery(item.title, item.subtitle, deferredQuery),
+    );
+
+    const matchedEntities = entityItems.filter((item) =>
+      matchesQuery(item.title, item.subtitle, deferredQuery),
+    );
+
+    return [...matchedPages, ...matchedEntities].slice(0, 14);
+  }, [deferredQuery, pageItems, searchItems]);
+
+  function selectTopResult() {
+    const topResult = items[0];
+    if (!topResult) return;
+
+    setQuery('');
+    navigate(topResult.route);
+    setCommandPaletteOpen(false);
+  }
 
   const handleShortcut = useEffectEvent((event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
+      if (commandPaletteOpen) {
+        setQuery('');
+      }
       setCommandPaletteOpen(!commandPaletteOpen);
     }
   });
@@ -33,13 +87,7 @@ export function CommandPalette() {
   useEffect(() => {
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [handleShortcut]);
-
-  useEffect(() => {
-    if (!commandPaletteOpen) {
-      setQuery('');
-    }
-  }, [commandPaletteOpen]);
+  }, []);
 
   if (!commandPaletteOpen) return null;
 
@@ -47,7 +95,10 @@ export function CommandPalette() {
     <div
       className="command-palette-backdrop"
       role="presentation"
-      onClick={() => setCommandPaletteOpen(false)}
+      onClick={() => {
+        setQuery('');
+        setCommandPaletteOpen(false);
+      }}
     >
       <div
         className="command-palette"
@@ -61,7 +112,12 @@ export function CommandPalette() {
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search tasks, clients, projects, members"
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              selectTopResult();
+            }}
+            placeholder="Search pages, tasks, clients, projects, members"
           />
         </div>
         <div className="command-palette__results">
@@ -71,6 +127,7 @@ export function CommandPalette() {
               type="button"
               className="command-palette__item"
               onClick={() => {
+                setQuery('');
                 navigate(item.route);
                 setCommandPaletteOpen(false);
               }}

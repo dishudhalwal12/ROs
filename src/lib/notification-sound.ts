@@ -1,5 +1,5 @@
 let sharedAudioContext: AudioContext | null = null;
-const NOTIFICATION_MASTER_VOLUME = 0.9;
+const NOTIFICATION_MASTER_VOLUME = 1.45;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -39,65 +39,82 @@ export async function playNotificationPing() {
 
   const startAt = audioContext.currentTime;
 
-  // Keep the signal punchy and audible without clipping into a harsh tone.
+  // Keep the signal loud and attention-grabbing while still compressing peaks.
   const compressor = audioContext.createDynamicsCompressor();
-  compressor.threshold.setValueAtTime(-24, startAt);
-  compressor.knee.setValueAtTime(20, startAt);
-  compressor.ratio.setValueAtTime(8, startAt);
-  compressor.attack.setValueAtTime(0.003, startAt);
-  compressor.release.setValueAtTime(0.2, startAt);
+  compressor.threshold.setValueAtTime(-40, startAt);
+  compressor.knee.setValueAtTime(24, startAt);
+  compressor.ratio.setValueAtTime(18, startAt);
+  compressor.attack.setValueAtTime(0.001, startAt);
+  compressor.release.setValueAtTime(0.18, startAt);
 
   const masterGain = audioContext.createGain();
   masterGain.gain.setValueAtTime(0.0001, startAt);
-  masterGain.gain.exponentialRampToValueAtTime(NOTIFICATION_MASTER_VOLUME, startAt + 0.018);
-  masterGain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.24);
-  masterGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.72);
+  masterGain.gain.exponentialRampToValueAtTime(NOTIFICATION_MASTER_VOLUME, startAt + 0.014);
+  masterGain.gain.exponentialRampToValueAtTime(0.52, startAt + 0.18);
+  masterGain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.62);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1.28);
   masterGain.connect(compressor);
   compressor.connect(audioContext.destination);
 
   const toneA = audioContext.createOscillator();
-  toneA.type = 'triangle';
-  toneA.frequency.setValueAtTime(920, startAt);
-  toneA.frequency.exponentialRampToValueAtTime(1120, startAt + 0.11);
+  toneA.type = 'square';
+  toneA.frequency.setValueAtTime(1020, startAt);
+  toneA.frequency.exponentialRampToValueAtTime(1180, startAt + 0.14);
 
   const gainA = audioContext.createGain();
   gainA.gain.setValueAtTime(0.0001, startAt);
-  gainA.gain.exponentialRampToValueAtTime(0.9, startAt + 0.012);
-  gainA.gain.exponentialRampToValueAtTime(0.22, startAt + 0.12);
-  gainA.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.28);
+  gainA.gain.exponentialRampToValueAtTime(1.0, startAt + 0.01);
+  gainA.gain.exponentialRampToValueAtTime(0.48, startAt + 0.16);
+  gainA.gain.exponentialRampToValueAtTime(0.12, startAt + 0.38);
+  gainA.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.92);
   toneA.connect(gainA);
   gainA.connect(masterGain);
 
   const toneB = audioContext.createOscillator();
-  toneB.type = 'sine';
-  toneB.frequency.setValueAtTime(1260, startAt + 0.12);
-  toneB.frequency.exponentialRampToValueAtTime(1580, startAt + 0.29);
+  toneB.type = 'triangle';
+  toneB.frequency.setValueAtTime(1440, startAt + 0.18);
+  toneB.frequency.exponentialRampToValueAtTime(1720, startAt + 0.42);
 
   const gainB = audioContext.createGain();
-  gainB.gain.setValueAtTime(0.0001, startAt + 0.11);
-  gainB.gain.exponentialRampToValueAtTime(0.78, startAt + 0.145);
-  gainB.gain.exponentialRampToValueAtTime(0.26, startAt + 0.26);
-  gainB.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.5);
+  gainB.gain.setValueAtTime(0.0001, startAt + 0.17);
+  gainB.gain.exponentialRampToValueAtTime(0.84, startAt + 0.2);
+  gainB.gain.exponentialRampToValueAtTime(0.22, startAt + 0.44);
+  gainB.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.96);
   toneB.connect(gainB);
   gainB.connect(masterGain);
 
   const airTone = audioContext.createOscillator();
   airTone.type = 'triangle';
-  airTone.frequency.setValueAtTime(1840, startAt + 0.125);
-  airTone.frequency.exponentialRampToValueAtTime(1680, startAt + 0.22);
+  airTone.frequency.setValueAtTime(1960, startAt + 0.12);
+  airTone.frequency.exponentialRampToValueAtTime(1760, startAt + 0.26);
 
   const airGain = audioContext.createGain();
   airGain.gain.setValueAtTime(0.0001, startAt + 0.11);
-  airGain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.155);
-  airGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.31);
+  airGain.gain.exponentialRampToValueAtTime(0.28, startAt + 0.15);
+  airGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.34);
   airTone.connect(airGain);
   airGain.connect(masterGain);
 
-  toneA.start(startAt);
-  toneB.start(startAt + 0.12);
-  airTone.start(startAt + 0.12);
+  const toneC = audioContext.createOscillator();
+  toneC.type = 'square';
+  toneC.frequency.setValueAtTime(1160, startAt + 0.38);
+  toneC.frequency.exponentialRampToValueAtTime(1360, startAt + 0.56);
 
-  toneA.stop(startAt + 0.32);
-  toneB.stop(startAt + 0.56);
-  airTone.stop(startAt + 0.34);
+  const gainC = audioContext.createGain();
+  gainC.gain.setValueAtTime(0.0001, startAt + 0.36);
+  gainC.gain.exponentialRampToValueAtTime(0.42, startAt + 0.395);
+  gainC.gain.exponentialRampToValueAtTime(0.12, startAt + 0.52);
+  gainC.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.84);
+  toneC.connect(gainC);
+  gainC.connect(masterGain);
+
+  toneA.start(startAt);
+  toneB.start(startAt + 0.18);
+  airTone.start(startAt + 0.12);
+  toneC.start(startAt + 0.38);
+
+  toneA.stop(startAt + 0.95);
+  toneB.stop(startAt + 1.02);
+  airTone.stop(startAt + 0.38);
+  toneC.stop(startAt + 0.84);
 }

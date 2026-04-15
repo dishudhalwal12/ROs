@@ -6,6 +6,7 @@ import {
   SquareCheckBig,
   TrendingUp,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -25,7 +26,54 @@ import {
 import { formatCurrency, formatMinutesAsHours, formatRelativeTime, formatShortDate } from '@/lib/format';
 import { DEAL_STAGE_LABELS, INVOICE_STATUS_LABELS, TASK_STATUS_LABELS } from '@/lib/constants';
 
+type HiddenStatKey =
+  | 'openTasks'
+  | 'activeClients'
+  | 'monthlyRevenue'
+  | 'hoursThisWeek'
+  | 'overdueItems';
+
+const HIDDEN_STATS_STORAGE_PREFIX = 'rovexa-overview-hidden-stats::';
+
+const DEFAULT_HIDDEN_STATS: Record<HiddenStatKey, boolean> = {
+  openTasks: false,
+  activeClients: false,
+  monthlyRevenue: false,
+  hoursThisWeek: false,
+  overdueItems: false,
+};
+
+function getHiddenStatsStorageKey(memberId: string) {
+  return `${HIDDEN_STATS_STORAGE_PREFIX}${memberId}`;
+}
+
+function readHiddenStats(memberId: string): Record<HiddenStatKey, boolean> {
+  if (typeof window === 'undefined') {
+    return DEFAULT_HIDDEN_STATS;
+  }
+
+  const raw = window.localStorage.getItem(getHiddenStatsStorageKey(memberId));
+  if (!raw) {
+    return DEFAULT_HIDDEN_STATS;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<HiddenStatKey, boolean>>;
+    return {
+      openTasks: Boolean(parsed.openTasks),
+      activeClients: Boolean(parsed.activeClients),
+      monthlyRevenue: Boolean(parsed.monthlyRevenue),
+      hoursThisWeek: Boolean(parsed.hoursThisWeek),
+      overdueItems: Boolean(parsed.overdueItems),
+    };
+  } catch {
+    return DEFAULT_HIDDEN_STATS;
+  }
+}
+
 export function OverviewPage() {
+  const [hiddenStats, setHiddenStats] = useState<Record<HiddenStatKey, boolean>>(DEFAULT_HIDDEN_STATS);
+  const [hiddenStatsHydrated, setHiddenStatsHydrated] = useState(false);
   const { member } = useAuth();
   const {
     activity,
@@ -38,6 +86,22 @@ export function OverviewPage() {
     timeEntries,
     members,
   } = useWorkspace();
+
+  useEffect(() => {
+    if (!member) {
+      setHiddenStats(DEFAULT_HIDDEN_STATS);
+      setHiddenStatsHydrated(false);
+      return;
+    }
+
+    setHiddenStats(readHiddenStats(member.uid));
+    setHiddenStatsHydrated(true);
+  }, [member]);
+
+  useEffect(() => {
+    if (!member || !hiddenStatsHydrated || typeof window === 'undefined') return;
+    window.localStorage.setItem(getHiddenStatsStorageKey(member.uid), JSON.stringify(hiddenStats));
+  }, [hiddenStats, hiddenStatsHydrated, member]);
 
   if (!member) return null;
 
@@ -54,6 +118,12 @@ export function OverviewPage() {
     tasks: tasks.filter((task) => task.status === status).slice(0, 3),
   }));
   const generalChannel = channels.find((channel) => channel.id === 'general') ?? channels[0];
+  const toggleStatVisibility = (key: HiddenStatKey) => {
+    setHiddenStats((previous) => ({
+      ...previous,
+      [key]: !previous[key],
+    }));
+  };
 
   return (
     <div className="page-stack">
@@ -85,38 +155,48 @@ export function OverviewPage() {
       <section className="stats-grid">
         <StatCard
           title="Open tasks"
-          value={String(calculateMyOpenTasks(tasks, member.uid))}
+          value={hiddenStats.openTasks ? '*' : String(calculateMyOpenTasks(tasks, member.uid))}
           change="Assigned and still moving"
           icon={SquareCheckBig}
           tone="violet"
+          onTitleClick={() => toggleStatVisibility('openTasks')}
+          titlePressed={hiddenStats.openTasks}
         />
         <StatCard
           title="Active clients"
-          value={String(activeClients)}
+          value={hiddenStats.activeClients ? '*' : String(activeClients)}
           change="Across pipeline and delivery"
           icon={BriefcaseBusiness}
           tone="mint"
+          onTitleClick={() => toggleStatVisibility('activeClients')}
+          titlePressed={hiddenStats.activeClients}
         />
         <StatCard
           title="Monthly revenue"
-          value={formatCurrency(calculateMonthlyRevenue(invoices))}
+          value={hiddenStats.monthlyRevenue ? '*' : formatCurrency(calculateMonthlyRevenue(invoices))}
           change="Drafts excluded"
           icon={TrendingUp}
           tone="peach"
+          onTitleClick={() => toggleStatVisibility('monthlyRevenue')}
+          titlePressed={hiddenStats.monthlyRevenue}
         />
         <StatCard
           title="Hours this week"
-          value={formatMinutesAsHours(calculateWeeklyHours(timeEntries, member.uid))}
+          value={hiddenStats.hoursThisWeek ? '*' : formatMinutesAsHours(calculateWeeklyHours(timeEntries, member.uid))}
           change="Tracked against tasks"
           icon={Clock3}
           tone="blue"
+          onTitleClick={() => toggleStatVisibility('hoursThisWeek')}
+          titlePressed={hiddenStats.hoursThisWeek}
         />
         <StatCard
           title="Overdue items"
-          value={String(calculateOverdueCount(tasks, invoices))}
+          value={hiddenStats.overdueItems ? '*' : String(calculateOverdueCount(tasks, invoices))}
           change="Tasks plus invoices"
           icon={Siren}
           tone="gold"
+          onTitleClick={() => toggleStatVisibility('overdueItems')}
+          titlePressed={hiddenStats.overdueItems}
         />
       </section>
 
