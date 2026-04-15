@@ -36,6 +36,10 @@ import {
 
 import { useAuth } from '@/hooks/use-auth';
 import { db, isRealtimeConfigured, realtimeDb, storage } from '@/lib/firebase';
+import {
+  hasEveryoneMention,
+  shouldBroadcastChannelMessage,
+} from '@/lib/chat-notifications';
 import { buildSearchItems } from '@/lib/domain';
 import { nowIso, uniqueStrings } from '@/lib/utils';
 import type {
@@ -489,6 +493,75 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     await addDoc(collection(db, 'workspaces', workspaceId, 'notifications'), input);
   }
 
+  function getEntityRoute(entityType?: ActivityItem['entityType'], entityId?: string) {
+    if (!entityType || !entityId) return undefined;
+
+    switch (entityType) {
+      case 'client':
+        return `/crm?client=${entityId}`;
+      case 'project':
+        return `/projects?project=${entityId}`;
+      case 'task':
+        return `/tasks?task=${entityId}`;
+      case 'invoice':
+        return `/billing?invoice=${entityId}`;
+      default:
+        return '/activity';
+    }
+  }
+
+  async function pushWorkspaceWideNotification(input: {
+    title: string;
+    body: string;
+    kind: AppNotification['kind'];
+    createdAt: string;
+    actionRoute?: string;
+    actorId?: string;
+    channelId?: string;
+  }) {
+    await pushNotification({
+      userId: 'all',
+      title: input.title,
+      body: input.body,
+      kind: input.kind,
+      readBy: input.actorId ? [input.actorId] : [],
+      actionRoute: input.actionRoute,
+      actorId: input.actorId,
+      channelId: input.channelId,
+      createdAt: input.createdAt,
+    });
+  }
+
+  async function pushPersonalNotifications(input: {
+    userIds: string[];
+    title: string;
+    body: string;
+    kind: AppNotification['kind'];
+    createdAt: string;
+    actionRoute?: string;
+    actorId?: string;
+    channelId?: string;
+  }) {
+    const targetUserIds = uniqueStrings(input.userIds).filter((userId) => userId !== input.actorId);
+    if (targetUserIds.length === 0) return;
+
+    await Promise.all(
+      targetUserIds.map((userId) =>
+        pushNotification({
+          userId,
+          title: input.title,
+          body: input.body,
+          kind: input.kind,
+          readBy: [],
+          actionRoute: input.actionRoute,
+          actorId: input.actorId,
+          channelId: input.channelId,
+          createdAt: input.createdAt,
+        }),
+      ),
+    );
+  }
+
   async function ensureProjectChannel(project: Project) {
     if (!workspaceId || !user || !isRealtimeConfigured || !realtimeDb) return;
     const channelId = `project_${project.id}`;
@@ -549,8 +622,9 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       title: 'Invite ready',
       body: `${email} can now join the workspace.`,
       kind: 'invite',
-      readBy: [],
+      readBy: [user.uid],
       actionRoute: '/settings',
+      actorId: user.uid,
       createdAt,
     });
 
@@ -596,6 +670,15 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       createdAt,
     });
 
+    await pushWorkspaceWideNotification({
+      title: 'New CRM lead added',
+      body: `${payload.company} entered the pipeline.`,
+      kind: 'system',
+      actionRoute: `/crm?client=${client.id}`,
+      actorId: user.uid,
+      createdAt,
+    });
+
     return client;
   }
 
@@ -616,6 +699,15 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       entityType: 'client',
       entityId: clientId,
       priority: stage === 'won' ? 'high' : 'normal',
+      createdAt: updatedAt,
+    });
+
+    await pushWorkspaceWideNotification({
+      title: 'CRM stage updated',
+      body: `Client moved to ${stage.replace('_', ' ')}.`,
+      kind: 'system',
+      actionRoute: `/crm?client=${clientId}`,
+      actorId: user.uid,
       createdAt: updatedAt,
     });
   }
@@ -664,8 +756,9 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       title: 'New project live',
       body: `${payload.name} is ready for execution.`,
       kind: 'system',
-      readBy: [],
+      readBy: [user.uid],
       actionRoute: `/projects?project=${project.id}`,
+      actorId: user.uid,
       createdAt,
     });
 
@@ -717,19 +810,14 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       createdAt,
     });
 
-    await Promise.all(
-      payload.assigneeIds.map((assigneeId) =>
-        pushNotification({
-          userId: assigneeId,
-          title: 'New assigned task',
-          body: payload.title,
-          kind: 'deadline',
-          readBy: [],
-          actionRoute: `/tasks?task=${task.id}`,
-          createdAt,
-        }),
-      ),
-    );
+    await pushWorkspaceWideNotification({
+      title: 'New task created',
+      body: payload.title,
+      kind: 'deadline',
+      actionRoute: `/tasks?task=${task.id}`,
+      actorId: user.uid,
+      createdAt,
+    });
 
     return task;
   }
@@ -751,6 +839,15 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       entityType: 'task',
       entityId: taskId,
       priority: status === 'review' ? 'high' : 'normal',
+      createdAt: updatedAt,
+    });
+
+    await pushWorkspaceWideNotification({
+      title: 'Task status changed',
+      body: `Task moved to ${status.replace('_', ' ')}.`,
+      kind: 'deadline',
+      actionRoute: `/tasks?task=${taskId}`,
+      actorId: user.uid,
       createdAt: updatedAt,
     });
   }
@@ -790,6 +887,20 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       createdAt,
     });
 
+    await pushWorkspaceWideNotification({
+      title:
+        payload.category === 'proposal'
+          ? 'Proposal updated'
+          : payload.category === 'document'
+            ? 'Document uploaded'
+            : 'Note added',
+      body: payload.title,
+      kind: 'system',
+      actionRoute: getEntityRoute(payload.entityType, payload.entityId),
+      actorId: user.uid,
+      createdAt,
+    });
+
     return note;
   }
 
@@ -821,6 +932,15 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       createdAt,
     });
 
+    await pushWorkspaceWideNotification({
+      title: 'Meeting logged',
+      body: payload.title,
+      kind: 'system',
+      actionRoute: getEntityRoute(payload.entityType, payload.entityId),
+      actorId: user.uid,
+      createdAt,
+    });
+
     return meeting;
   }
 
@@ -849,6 +969,19 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       entityType: payload.projectId ? 'project' : 'task',
       entityId: payload.projectId ?? payload.taskId,
       priority: 'normal',
+      createdAt,
+    });
+
+    await pushWorkspaceWideNotification({
+      title: 'Time logged',
+      body: payload.description,
+      kind: 'system',
+      actionRoute: payload.projectId
+        ? `/projects?project=${payload.projectId}`
+        : payload.taskId
+          ? `/tasks?task=${payload.taskId}`
+          : '/time',
+      actorId: user.uid,
       createdAt,
     });
 
@@ -885,14 +1018,35 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       createdAt,
     });
 
+    await pushWorkspaceWideNotification({
+      title: 'Invoice created',
+      body: payload.title,
+      kind: 'billing',
+      actionRoute: `/billing?invoice=${invoice.id}`,
+      actorId: user.uid,
+      createdAt,
+    });
+
     return invoice;
   }
 
   async function updateInvoiceStatus(invoiceId: string, status: Invoice['status']) {
     if (!workspaceId) throw new Error('Workspace unavailable.');
+    const updatedAt = nowIso();
+    const invoice = collections.invoices.find((entry) => entry.id === invoiceId);
+
     await updateDoc(doc(db, 'workspaces', workspaceId, 'invoices', invoiceId), {
       status,
-      updatedAt: nowIso(),
+      updatedAt,
+    });
+
+    await pushWorkspaceWideNotification({
+      title: 'Invoice updated',
+      body: `${invoice?.title ?? 'Invoice'} is now ${status}.`,
+      kind: 'billing',
+      actionRoute: `/billing?invoice=${invoiceId}`,
+      actorId: user?.uid,
+      createdAt: updatedAt,
     });
   }
 
@@ -1076,6 +1230,33 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
           ),
         ),
     );
+
+    const senderName = member?.name ?? user.email ?? 'Team member';
+    const actionRoute = `/messages?channel=${channelId}`;
+    if (channel.type === 'direct') {
+      await pushPersonalNotifications({
+        userIds: channel.participantIds,
+        title: `New direct message from ${senderName}`,
+        body: trimmed,
+        kind: 'message',
+        actionRoute,
+        actorId: user.uid,
+        channelId,
+        createdAt: message.createdAt,
+      });
+    } else if (shouldBroadcastChannelMessage(channel, trimmed)) {
+      await pushWorkspaceWideNotification({
+        title: hasEveryoneMention(trimmed)
+          ? `${senderName} mentioned @everyone in ${channel.name}`
+          : `New message in ${channel.name}`,
+        body: trimmed,
+        kind: hasEveryoneMention(trimmed) ? 'mention' : 'message',
+        actionRoute,
+        actorId: user.uid,
+        channelId,
+        createdAt: message.createdAt,
+      });
+    }
 
     await markChannelRead(channelId);
   }

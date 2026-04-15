@@ -219,7 +219,7 @@ export function MessagesPage() {
                       setDraft(event.target.value);
                       void setTypingState(selectedChannel.id, event.target.value.length > 0);
                     }}
-                    placeholder="Share an update, mention a teammate, or post a quick status."
+                    placeholder="Share an update, mention a teammate, or use @everyone to ping the whole channel."
                   />
                   <button type="button" className="primary-button" onClick={() => void handleSend()}>
                     <Send size={16} />

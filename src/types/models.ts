@@ -181,9 +181,11 @@ export interface AppNotification {
   userId: string | 'all';
   title: string;
   body: string;
-  kind: 'mention' | 'deadline' | 'billing' | 'system' | 'invite';
+  kind: 'mention' | 'deadline' | 'billing' | 'system' | 'invite' | 'message';
   readBy: string[];
   actionRoute?: string;
+  actorId?: string;
+  channelId?: string;
   createdAt: string;
 }
 
