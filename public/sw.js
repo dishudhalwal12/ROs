@@ -1,5 +1,5 @@
-const CACHE_NAME = 'rovexa-team-os-v2';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/logo.gif'];
+const CACHE_NAME = 'rovexa-team-os-v3';
+const APP_SHELL = ['/', '/manifest.webmanifest', '/favicon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
