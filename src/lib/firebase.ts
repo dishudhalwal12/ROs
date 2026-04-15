@@ -4,17 +4,20 @@ import { initializeFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 
-const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+import {
+  getMissingFirebaseEnvKeys,
+  resolveFirebaseConfig,
+} from '@/lib/firebase-config';
 
-export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-};
+const missingFirebaseEnvKeys = getMissingFirebaseEnvKeys(import.meta.env);
+
+if (missingFirebaseEnvKeys.length > 0) {
+  console.warn(
+    `[firebase] Missing ${missingFirebaseEnvKeys.join(', ')}. Using bundled Rovexa Firebase defaults.`,
+  );
+}
+
+export const firebaseConfig = resolveFirebaseConfig(import.meta.env);
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -26,5 +29,5 @@ export const realtimeDb = firebaseConfig.databaseURL ? getDatabase(app) : null;
 export const isRealtimeConfigured = Boolean(firebaseConfig.databaseURL);
 
 export function getDefaultRealtimeUrl() {
-  return `https://${projectId}-default-rtdb.firebaseio.com`;
+  return `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`;
 }

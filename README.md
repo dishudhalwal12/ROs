@@ -40,6 +40,8 @@ Set these environment variables in Vercel before deploying:
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_DATABASE_URL`
 
+If you do not set them, the app now falls back to the bundled public Firebase web config for the current Rovexa project. Set the env vars whenever you want Vercel to point at a different Firebase project.
+
 ## Build Commands
 
 ```bash
