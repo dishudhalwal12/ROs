@@ -1,4 +1,5 @@
 let sharedAudioContext: AudioContext | null = null;
+const NOTIFICATION_VOLUME_MULTIPLIER = 2.25;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -39,7 +40,10 @@ export async function playNotificationPing() {
   const startAt = audioContext.currentTime;
   const masterGain = audioContext.createGain();
   masterGain.gain.setValueAtTime(0.0001, startAt);
-  masterGain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.02);
+  masterGain.gain.exponentialRampToValueAtTime(
+    0.12 * NOTIFICATION_VOLUME_MULTIPLIER,
+    startAt + 0.02,
+  );
   masterGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1);
   masterGain.connect(audioContext.destination);
 
