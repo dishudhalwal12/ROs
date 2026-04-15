@@ -1,5 +1,5 @@
 let sharedAudioContext: AudioContext | null = null;
-const NOTIFICATION_VOLUME_MULTIPLIER = 2.25;
+const NOTIFICATION_VOLUME_MULTIPLIER = 2.25 * 6.25;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
