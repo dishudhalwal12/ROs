@@ -228,6 +228,15 @@ export function TimepassProvider({ children }: PropsWithChildren) {
   const micTrackRef = useRef<LocalAudioTrack | null>(null);
   const micTrackPromiseRef = useRef<Promise<LocalAudioTrack> | null>(null);
   const livekitConnectRef = useRef<Promise<void> | null>(null);
+  const voiceAudioElementsRef = useRef(
+    new Map<
+      string,
+      {
+        element: HTMLAudioElement;
+        track: LocalTrack | RemoteTrack | null;
+      }
+    >(),
+  );
   const pttDesiredRef = useRef(false);
   const pttApplyRef = useRef<Promise<void> | null>(null);
 
@@ -266,6 +275,30 @@ export function TimepassProvider({ children }: PropsWithChildren) {
     }
 
     return micTrackPromiseRef.current;
+  }, []);
+
+  const resetVoiceAudioOutputs = useCallback(() => {
+    voiceAudioElementsRef.current.forEach(({ element, track }) => {
+      track?.detach(element);
+      element.pause();
+      element.removeAttribute('src');
+      element.load();
+      element.remove();
+    });
+    voiceAudioElementsRef.current.clear();
+  }, []);
+
+  const resumeRoomAudioPlayback = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || typeof room.startAudio !== 'function') {
+      return;
+    }
+
+    try {
+      await room.startAudio();
+    } catch {
+      // Ignore autoplay-policy failures until the next user gesture.
+    }
   }, []);
 
   const bumpRoomRevision = useCallback(() => {
@@ -458,6 +491,7 @@ export function TimepassProvider({ children }: PropsWithChildren) {
       cancelled = true;
       room.disconnect();
       roomRef.current = null;
+      resetVoiceAudioOutputs();
       micTrackRef.current?.stop();
       micTrackRef.current = null;
       micTrackPromiseRef.current = null;
@@ -465,7 +499,73 @@ export function TimepassProvider({ children }: PropsWithChildren) {
       setIsMicLive(false);
       setIsPushToTalkActive(false);
     };
-  }, [bumpRoomRevision, livekitConfigError, member, resolvedLivekitUrl, user, workspaceId]);
+  }, [
+    bumpRoomRevision,
+    livekitConfigError,
+    member,
+    resetVoiceAudioOutputs,
+    resolvedLivekitUrl,
+    user,
+    workspaceId,
+  ]);
+
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || typeof document === 'undefined') {
+      return;
+    }
+
+    const connectedTrackIds = new Set<string>();
+
+    Array.from(room.remoteParticipants.values()).forEach((participant) => {
+      const microphoneTrack =
+        participant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
+
+      if (!microphoneTrack) {
+        return;
+      }
+
+      connectedTrackIds.add(participant.identity);
+
+      let output = voiceAudioElementsRef.current.get(participant.identity);
+      if (!output) {
+        const element = document.createElement('audio');
+        element.autoplay = true;
+        element.setAttribute('playsinline', 'true');
+        element.dataset.timepassVoiceParticipant = participant.identity;
+        element.style.display = 'none';
+        document.body.appendChild(element);
+
+        output = {
+          element,
+          track: null,
+        };
+        voiceAudioElementsRef.current.set(participant.identity, output);
+      }
+
+      if (output.track !== microphoneTrack) {
+        output.track?.detach(output.element);
+        microphoneTrack.attach(output.element);
+        output.track = microphoneTrack;
+      }
+
+      output.element.muted = false;
+      output.element.volume = 1;
+      output.element.playbackRate = 1;
+      void output.element.play().catch(() => undefined);
+    });
+
+    voiceAudioElementsRef.current.forEach((output, participantId) => {
+      if (connectedTrackIds.has(participantId)) {
+        return;
+      }
+
+      output.track?.detach(output.element);
+      output.element.pause();
+      output.element.remove();
+      voiceAudioElementsRef.current.delete(participantId);
+    });
+  }, [roomRevision]);
 
   const connectLiveKitRoom = useCallback(async () => {
     if (!workspaceId || !user || !member || !resolvedLivekitUrl) {
@@ -484,13 +584,7 @@ export function TimepassProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (typeof room.startAudio === 'function') {
-      try {
-        await room.startAudio();
-      } catch {
-        // Ignore autoplay blocking here; the gesture will still be used for the connect attempt.
-      }
-    }
+    await resumeRoomAudioPlayback();
 
     if (livekitConnectRef.current) {
       await livekitConnectRef.current;
@@ -539,6 +633,7 @@ export function TimepassProvider({ children }: PropsWithChildren) {
       await room.connect(payload.wsUrl, payload.token, {
         autoSubscribe: true,
       });
+      await resumeRoomAudioPlayback();
 
       setLiveState('connected');
       setLiveError(null);
@@ -558,7 +653,15 @@ export function TimepassProvider({ children }: PropsWithChildren) {
         livekitConnectRef.current = null;
       }
     }
-  }, [bumpRoomRevision, livekitConfigError, member, resolvedLivekitUrl, user, workspaceId]);
+  }, [
+    bumpRoomRevision,
+    livekitConfigError,
+    member,
+    resolvedLivekitUrl,
+    resumeRoomAudioPlayback,
+    user,
+    workspaceId,
+  ]);
 
   const syncLocalPresenterRecord = useCallback(
     async (sharing: boolean, withAudio: boolean) => {
@@ -719,11 +822,12 @@ export function TimepassProvider({ children }: PropsWithChildren) {
   const requestPushToTalkState = useCallback(
     async (pressed: boolean) => {
       void primeTimepassAudio();
+      await resumeRoomAudioPlayback();
       pttDesiredRef.current = pressed;
       setIsPushToTalkActive(pressed);
       await applyDesiredPushToTalkState();
     },
-    [applyDesiredPushToTalkState],
+    [applyDesiredPushToTalkState, resumeRoomAudioPlayback],
   );
 
   useEffect(() => {
@@ -1249,11 +1353,13 @@ export function TimepassProvider({ children }: PropsWithChildren) {
 
   const toggleOpenMic = useCallback(async () => {
     void primeTimepassAudio();
+    await resumeRoomAudioPlayback();
     await updateMicState(!isMicLive);
-  }, [isMicLive, updateMicState]);
+  }, [isMicLive, resumeRoomAudioPlayback, updateMicState]);
 
   const toggleScreenShare = useCallback(async () => {
     void primeTimepassAudio();
+    await resumeRoomAudioPlayback();
     const room = roomRef.current;
     if (!room) {
       throw new Error('Connect to the live lounge before sharing your screen.');
@@ -1308,7 +1414,7 @@ export function TimepassProvider({ children }: PropsWithChildren) {
     }
 
     setRoomRevision((value) => value + 1);
-  }, [connectLiveKitRoom]);
+  }, [connectLiveKitRoom, resumeRoomAudioPlayback]);
 
   const updateLock = useCallback(
     async (key: 'queueFrozen' | 'stageFrozen' | 'soundboardMuted', value: boolean) => {

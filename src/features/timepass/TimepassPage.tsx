@@ -267,7 +267,7 @@ function YouTubeStage({
         playerReadyRef.current = false;
         loadedVideoIdRef.current = null;
         playerRef.current = new YT.Player(containerRef.current, {
-          host: 'https://www.youtube.com',
+          host: 'https://www.youtube-nocookie.com',
           videoId: media.youtubeVideoId,
           playerVars: getYouTubePlayerVars(),
           events: {
