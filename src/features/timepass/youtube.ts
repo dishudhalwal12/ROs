@@ -27,6 +27,7 @@ export interface YouTubeApi {
     options: {
       width?: number | string;
       height?: number | string;
+      host?: string;
       videoId?: string;
       playerVars?: Record<string, number | string>;
       events?: {
@@ -99,4 +100,16 @@ export function getClosestSupportedPlaybackRate(
       ? current
       : closest;
   }, availableRates[0]);
+}
+
+export function getYouTubePlayerVars() {
+  return {
+    autoplay: 1,
+    controls: 0,
+    rel: 0,
+    modestbranding: 1,
+    playsinline: 1,
+    enablejsapi: 1,
+    origin: typeof window === 'undefined' ? '' : window.location.origin,
+  } satisfies Record<string, number | string>;
 }

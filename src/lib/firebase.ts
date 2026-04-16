@@ -11,9 +11,9 @@ import {
 
 const missingFirebaseEnvKeys = getMissingFirebaseEnvKeys(import.meta.env);
 
-if (missingFirebaseEnvKeys.length > 0) {
-  console.warn(
-    `[firebase] Missing ${missingFirebaseEnvKeys.join(', ')}. Using bundled Rovexa Firebase defaults.`,
+if (import.meta.env.DEV && missingFirebaseEnvKeys.length > 0) {
+  console.info(
+    `[firebase] Missing ${missingFirebaseEnvKeys.join(', ')}. Using bundled Rovexa Firebase defaults for local development.`,
   );
 }
 

@@ -36,6 +36,7 @@ import { playReactionFx } from '@/features/timepass/timepass-sfx';
 import {
   ensureYouTubeApi,
   getClosestSupportedPlaybackRate,
+  getYouTubePlayerVars,
   type YouTubePlayerInstance,
 } from '@/features/timepass/youtube';
 import {
@@ -245,6 +246,8 @@ function YouTubeStage({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
+  const playerReadyRef = useRef(false);
+  const loadedVideoIdRef = useRef<string | null>(null);
   const onEndedRef = useRef(onEnded);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -261,16 +264,18 @@ function YouTubeStage({
       .then((YT) => {
         if (cancelled || !containerRef.current) return;
 
+        playerReadyRef.current = false;
+        loadedVideoIdRef.current = null;
         playerRef.current = new YT.Player(containerRef.current, {
+          host: 'https://www.youtube.com',
           videoId: media.youtubeVideoId,
-          playerVars: {
-            autoplay: 1,
-            controls: 0,
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-          },
+          playerVars: getYouTubePlayerVars(),
           events: {
+            onReady: () => {
+              playerReadyRef.current = true;
+              loadedVideoIdRef.current = null;
+              setApiError(null);
+            },
             onStateChange: (event) => {
               if (event.data === YT.PlayerState.ENDED) {
                 onEndedRef.current(media.id);
@@ -287,44 +292,45 @@ function YouTubeStage({
 
     return () => {
       cancelled = true;
+      playerReadyRef.current = false;
+      loadedVideoIdRef.current = null;
       playerRef.current?.destroy();
       playerRef.current = null;
     };
   }, [media.id, media.youtubeVideoId]);
 
   useEffect(() => {
-    if (!playerRef.current || !media.youtubeVideoId) return;
-
-    playerRef.current.loadVideoById(media.youtubeVideoId, currentPositionSeconds);
-  }, [media.id, media.youtubeVideoId]);
-
-  useEffect(() => {
     const player = playerRef.current;
-    if (!player) return;
+    if (!player || !playerReadyRef.current || !media.youtubeVideoId) return;
+
+    if (loadedVideoIdRef.current !== media.youtubeVideoId) {
+      if (isPlaying && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(media.youtubeVideoId, currentPositionSeconds);
+      } else if (typeof player.cueVideoById === 'function') {
+        player.cueVideoById(media.youtubeVideoId, currentPositionSeconds);
+      }
+
+      loadedVideoIdRef.current = media.youtubeVideoId;
+      return;
+    }
 
     const currentTime = player.getCurrentTime?.() ?? 0;
     if (shouldResyncPlayback(currentTime, currentPositionSeconds)) {
-      if (typeof player.seekTo === 'function') {
-        player.seekTo(currentPositionSeconds, true);
-      }
+      player.seekTo?.(currentPositionSeconds, true);
     }
 
-    if (typeof player.setVolume === 'function') {
-      player.setVolume(Math.round(duckingGain * 100));
-    }
+    player.setVolume?.(Math.round(duckingGain * 100));
 
     const supportedRates = player.getAvailablePlaybackRates?.() ?? [];
     const rate = getClosestSupportedPlaybackRate(1, supportedRates);
-    if (typeof player.setPlaybackRate === 'function') {
-      player.setPlaybackRate(rate);
-    }
+    player.setPlaybackRate?.(rate);
 
-    if (isPlaying && typeof player.playVideo === 'function') {
-      player.playVideo();
-    } else if (!isPlaying && typeof player.pauseVideo === 'function') {
-      player.pauseVideo();
+    if (isPlaying) {
+      player.playVideo?.();
+    } else {
+      player.pauseVideo?.();
     }
-  }, [currentPositionSeconds, duckingGain, isPlaying]);
+  }, [currentPositionSeconds, duckingGain, isPlaying, media.youtubeVideoId]);
 
   return (
     <div className="timepass-stage-card timepass-stage-card--youtube">
