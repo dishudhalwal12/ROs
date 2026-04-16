@@ -1,5 +1,9 @@
 export type ThemeMode = 'light' | 'dark';
 export type WorkMode = 'work' | 'rest';
+export type TimepassMediaKind = 'upload' | 'youtube';
+export type TimepassVoiceMode = 'push_to_talk' | 'open_mic';
+export type TimepassReactionKind = 'woohoo' | 'yes' | 'clap' | 'fire' | 'lol';
+export type TimepassStageKind = 'media' | 'presenter';
 
 export type Role = 'founder' | 'manager' | 'member';
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -192,6 +196,87 @@ export interface AppNotification {
   actorId?: string;
   channelId?: string;
   createdAt: string;
+}
+
+export interface TimepassMediaItem {
+  id: string;
+  kind: TimepassMediaKind;
+  title: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  accent?: string;
+  durationSeconds?: number;
+  thumbnailUrl?: string;
+  contentType?: string;
+  sizeBytes?: number;
+  storagePath?: string;
+  url?: string;
+  youtubeVideoId?: string;
+}
+
+export interface TimepassQueueItem {
+  id: string;
+  mediaId: string;
+  addedBy: string;
+  addedAt: string;
+  order: number;
+  media: TimepassMediaItem;
+}
+
+export interface TimepassPlaybackState {
+  isPlaying: boolean;
+  positionSeconds: number;
+  playbackRate: number;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export interface TimepassPresenter {
+  id: string;
+  participantId: string;
+  memberId: string;
+  memberName: string;
+  startedAt: string;
+  presentationLabel: string;
+  withAudio: boolean;
+}
+
+export interface TimepassReaction {
+  id: string;
+  kind: TimepassReactionKind;
+  actorId: string;
+  actorName: string;
+  createdAt: string;
+}
+
+export interface TimepassPinnedStage {
+  kind: TimepassStageKind;
+  mediaId?: string;
+  presenterId?: string;
+  updatedAt: string;
+}
+
+export interface TimepassRoomLocks {
+  queueFrozen: boolean;
+  stageFrozen: boolean;
+  soundboardMuted: boolean;
+}
+
+export interface TimepassRoomState {
+  roomName: string;
+  activeMedia: TimepassMediaItem | null;
+  queue: TimepassQueueItem[];
+  playback: TimepassPlaybackState;
+  presenters: TimepassPresenter[];
+  pinnedStage: TimepassPinnedStage | null;
+  reactions: TimepassReaction[];
+  voiceModes: Record<string, TimepassVoiceMode>;
+  locks: TimepassRoomLocks;
+  stopAllSharesAt?: string;
+  lastResetAt?: string;
+  updatedAt: string;
 }
 
 export interface ActivityItem {

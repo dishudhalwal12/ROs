@@ -6,6 +6,7 @@ import {
   playNotificationPing,
   primeNotificationSound,
 } from '@/lib/notification-sound';
+import { triggerTimepassNotificationDucking } from '@/lib/timepass-ducking';
 
 export function NotificationSound() {
   const { member } = useAuth();
@@ -43,6 +44,10 @@ export function NotificationSound() {
 
     if (latestNotification.actorId && latestNotification.actorId === member?.uid) {
       return;
+    }
+
+    if (latestNotification.kind === 'mention' || latestNotification.kind === 'message') {
+      triggerTimepassNotificationDucking();
     }
 
     void playNotificationPing();

@@ -1,7 +1,7 @@
 let sharedAudioContext: AudioContext | null = null;
 const NOTIFICATION_MASTER_VOLUME = 1.45;
 
-function getAudioContext() {
+function createAudioContext() {
   if (typeof window === 'undefined') return null;
 
   const AudioContextClass = window.AudioContext;
@@ -15,7 +15,7 @@ function getAudioContext() {
 }
 
 export async function primeNotificationSound() {
-  const audioContext = getAudioContext();
+  const audioContext = createAudioContext();
   if (!audioContext || audioContext.state !== 'suspended') return;
 
   try {
@@ -26,7 +26,7 @@ export async function primeNotificationSound() {
 }
 
 export async function playNotificationPing() {
-  const audioContext = getAudioContext();
+  const audioContext = sharedAudioContext;
   if (!audioContext) return;
 
   if (audioContext.state === 'suspended') {

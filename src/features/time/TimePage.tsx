@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { format, isSameDay, startOfDay, subDays } from 'date-fns';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -63,6 +64,7 @@ export function TimePage() {
   type TimeEntryFormInput = z.input<typeof timeEntrySchema>;
   type TimeEntryFormValues = z.output<typeof timeEntrySchema>;
 
+  const navigate = useNavigate();
   const { member } = useAuth();
   const {
     tasks,
@@ -234,6 +236,37 @@ export function TimePage() {
           <span className="eyebrow">Time</span>
           <h1>Work and rest history, live status, and focus analytics</h1>
           <p>Track what you worked on, when you rested, and how your week is actually being spent.</p>
+        </div>
+      </section>
+
+      <section className="hero-panel timepass-launcher">
+        <div>
+          <span className="eyebrow">Timepass</span>
+          <h1>Flip the room into a synced lounge for music, watch parties, and live sharing.</h1>
+          <p>
+            Jump into the immersive Timepass mode for premium room audio, YouTube sync, screen sharing,
+            push-to-talk voice, and a much more playful full-screen vibe.
+          </p>
+        </div>
+        <div className="hero-panel__summary">
+          <div>
+            <strong>DJ queue</strong>
+            <span>Uploads + YouTube watch party</span>
+          </div>
+          <div>
+            <strong>Voice room</strong>
+            <span>Push-to-talk or open mic</span>
+          </div>
+          <div>
+            <strong>Live sharing</strong>
+            <span>Tabs, screens, and system audio</span>
+          </div>
+        </div>
+        <div className="page-header__actions">
+          <button type="button" className="primary-button" onClick={() => navigate('/time/timepass')}>
+            <Activity size={16} />
+            Enter Timepass
+          </button>
         </div>
       </section>
 

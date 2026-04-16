@@ -115,6 +115,16 @@ service cloud.firestore {
           (workspaceMember(workspaceId) && resource.data.memberId == request.auth.uid);
       }
 
+      match /timepassMedia/{mediaId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create: if workspaceMember(workspaceId) &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update: if leadership(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.createdBy == request.auth.uid);
+        allow delete: if leadership(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.createdBy == request.auth.uid);
+      }
+
       match /invoices/{invoiceId} {
         allow read: if workspaceMember(workspaceId);
         allow write: if leadership(workspaceId);

@@ -2119,6 +2119,463 @@ kbd {
   color: var(--text-soft);
 }
 
+.app-shell__workspace--immersive {
+  background:
+    radial-gradient(circle at top, rgba(87, 174, 255, 0.2), transparent 24%),
+    radial-gradient(circle at right, rgba(255, 89, 163, 0.16), transparent 28%),
+    linear-gradient(160deg, #081120, #110e20 54%, #09040f);
+  color: #f4f7fb;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-shell__content--immersive {
+  padding: 0;
+}
+
+.timepass-launcher {
+  background:
+    radial-gradient(circle at top left, rgba(255, 105, 180, 0.16), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(47, 75, 222, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(7, 17, 35, 0.92), rgba(14, 23, 51, 0.9));
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #eff5ff;
+}
+
+.timepass-launcher p,
+.timepass-launcher span {
+  color: rgba(239, 245, 255, 0.74);
+}
+
+.timepass-launcher .hero-panel__summary > div {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.timepass-page {
+  position: relative;
+  min-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  color: #f4f7fb;
+}
+
+.timepass-page__ambient {
+  position: absolute;
+  inset: auto;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(60px);
+  opacity: 0.8;
+}
+
+.timepass-page__ambient--one {
+  top: 1rem;
+  left: -2rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgba(0, 224, 199, 0.24);
+}
+
+.timepass-page__ambient--two {
+  right: -3rem;
+  bottom: 3rem;
+  width: 22rem;
+  height: 22rem;
+  background: rgba(255, 83, 149, 0.2);
+}
+
+.timepass-page__chrome {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1rem;
+  min-height: calc(100dvh - 2rem);
+  padding: 1.2rem;
+}
+
+.timepass-topbar,
+.timepass-topbar__actions,
+.timepass-stage__header,
+.timepass-stage__header-actions,
+.timepass-sidepanel__header,
+.timepass-sidepanel__footer,
+.timepass-controls,
+.timepass-controls__playback,
+.timepass-controls__voice,
+.timepass-progress__labels,
+.timepass-library__actions,
+.timepass-presenter-tile,
+.timepass-presenter-tile__actions,
+.timepass-queue__item,
+.timepass-queue__actions,
+.timepass-alert-shell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.timepass-topbar {
+  align-items: flex-start;
+}
+
+.timepass-topbar__title {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.timepass-topbar__title h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  color: #fff;
+}
+
+.timepass-topbar__title p {
+  max-width: 48rem;
+  color: rgba(226, 234, 247, 0.8);
+}
+
+.timepass-alert-shell {
+  justify-content: flex-start;
+}
+
+.timepass-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  padding: 0.8rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 15, 31, 0.72);
+  backdrop-filter: blur(20px);
+}
+
+.timepass-alert span {
+  color: #eff5ff;
+}
+
+.timepass-alert--warning {
+  border-color: rgba(248, 223, 124, 0.24);
+}
+
+.timepass-alert--danger {
+  border-color: rgba(255, 96, 96, 0.28);
+}
+
+.timepass-alert--info {
+  border-color: rgba(122, 196, 255, 0.24);
+}
+
+.timepass-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+  gap: 1rem;
+  min-height: 0;
+}
+
+.timepass-stage,
+.timepass-sidepanel__section {
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 15, 31, 0.56);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(22px);
+}
+
+.timepass-stage {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.timepass-stage__header {
+  align-items: flex-start;
+}
+
+.timepass-stage__header h2,
+.timepass-sidepanel__header h3 {
+  margin: 0.3rem 0 0;
+  color: #fff;
+}
+
+.timepass-stage__header p,
+.timepass-sidepanel__header p,
+.timepass-empty-copy {
+  color: rgba(220, 230, 244, 0.68);
+}
+
+.timepass-stage-card {
+  display: grid;
+  gap: 1rem;
+  min-height: 21rem;
+  padding: 1.1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 24%),
+    linear-gradient(180deg, rgba(11, 23, 43, 0.95), rgba(6, 11, 26, 0.88));
+}
+
+.timepass-stage-card--music {
+  align-content: space-between;
+}
+
+.timepass-stage-card--secondary {
+  min-height: auto;
+}
+
+.timepass-stage-card--empty {
+  place-items: center;
+  text-align: center;
+}
+
+.timepass-stage-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.timepass-stage-card__meta strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+.timepass-stage-card__meta p {
+  margin-top: 0.35rem;
+  color: rgba(220, 230, 244, 0.7);
+}
+
+.timepass-stage-card__stats {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+  color: rgba(220, 230, 244, 0.72);
+}
+
+.timepass-stage-card__video,
+.timepass-stage-card__video-frame iframe,
+.timepass-stage-card__video-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 18rem;
+  border: 0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.timepass-stage-card__empty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+
+.timepass-stage-card__empty-grid > div {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(244, 247, 251, 0.84);
+}
+
+.timepass-wave {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.45rem;
+  height: 14rem;
+}
+
+.timepass-wave span {
+  display: block;
+  height: 18%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0.72), rgba(56, 189, 248, 0.2));
+}
+
+.timepass-wave__bar--active {
+  animation: timepass-wave 1.15s ease-in-out infinite alternate;
+}
+
+@keyframes timepass-wave {
+  from {
+    height: 18%;
+  }
+
+  to {
+    height: 100%;
+  }
+}
+
+.timepass-controls {
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.timepass-progress {
+  min-width: min(32rem, 60vw);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.timepass-progress input[type='range'] {
+  padding: 0;
+  background: transparent;
+  appearance: none;
+  height: 0.45rem;
+}
+
+.timepass-progress input[type='range']::-webkit-slider-runnable-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.timepass-progress input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.27rem;
+  border-radius: 999px;
+  background: white;
+}
+
+.timepass-progress__meter {
+  height: 0.22rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.timepass-progress__meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7dd3fc, #f472b6);
+}
+
+.timepass-hold-button--active,
+.timepass-open-mic-button--live {
+  box-shadow: 0 0 0 6px rgba(125, 211, 252, 0.12);
+}
+
+.timepass-presenter-tray {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.timepass-presenter-tile,
+.timepass-library__item,
+.timepass-queue__item,
+.timepass-participants__item {
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.timepass-presenter-tile p,
+.timepass-library__item p,
+.timepass-queue__item p,
+.timepass-participants__item small {
+  color: rgba(220, 230, 244, 0.68);
+}
+
+.timepass-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.timepass-reactions__button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+}
+
+.timepass-participants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+
+.timepass-participants__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.timepass-participants__item--speaking {
+  border-color: rgba(103, 232, 249, 0.34);
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.18);
+}
+
+.timepass-sidepanel {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  align-content: start;
+}
+
+.timepass-sidepanel__section {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.timepass-sidepanel__section--danger {
+  background: rgba(39, 8, 17, 0.65);
+}
+
+.timepass-queue,
+.timepass-library {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.timepass-queue__item--active {
+  border-color: rgba(103, 232, 249, 0.28);
+}
+
+.timepass-lock-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+}
+
+.timepass-reaction-burst {
+  position: absolute;
+  bottom: 1.2rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 15, 31, 0.76);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3);
+}
+
+.timepass-reaction-burst strong {
+  color: #fff;
+}
+
+.timepass-reaction-burst small {
+  color: rgba(220, 230, 244, 0.66);
+}
+
 @media (max-width: 1200px) {
   .stats-grid,
   .stats-grid--four,
@@ -2162,6 +2619,10 @@ kbd {
 
   .floating-tracker {
     width: min(92vw, 360px) !important;
+  }
+
+  .timepass-dashboard {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2228,5 +2689,33 @@ kbd {
   .messages-thread__chips {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .timepass-topbar,
+  .timepass-stage__header,
+  .timepass-controls,
+  .timepass-controls__playback,
+  .timepass-controls__voice,
+  .timepass-sidepanel__header,
+  .timepass-library__actions,
+  .timepass-queue__item,
+  .timepass-queue__actions,
+  .timepass-presenter-tile,
+  .timepass-presenter-tile__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timepass-page__chrome {
+    padding: 0.85rem;
+  }
+
+  .timepass-stage-card__empty-grid,
+  .timepass-participants {
+    grid-template-columns: 1fr;
+  }
+
+  .timepass-progress {
+    min-width: 0;
   }
 }

@@ -1,5 +1,11 @@
 {
   "rules": {
+    "timepass": {
+      "$workspaceId": {
+        ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",
+        ".write": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()"
+      }
+    },
     "workspaces": {
       "$workspaceId": {
         ".read": "auth != null && root.child('workspaces').child($workspaceId).child('members').child(auth.uid).exists()",

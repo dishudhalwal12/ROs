@@ -26,7 +26,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { ref, set } from 'firebase/database';
+import { ref, set, update } from 'firebase/database';
 
 import { getAuthErrorCode, toFriendlyAuthError } from '@/lib/auth-errors';
 import { auth, db, isRealtimeConfigured, realtimeDb } from '@/lib/firebase';
@@ -109,6 +109,34 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [workspaceExists, setWorkspaceExists] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const syncMemberToRealtime = useCallback(
+    async (input: {
+      workspaceId: string;
+      uid: string;
+      name: string;
+      email: string;
+      role: Member['role'];
+      status?: Member['status'];
+    }) => {
+      if (!isRealtimeConfigured || !realtimeDb) {
+        return;
+      }
+
+      try {
+        await update(ref(realtimeDb, `workspaces/${input.workspaceId}/members/${input.uid}`), {
+          uid: input.uid,
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          status: input.status ?? 'active',
+        });
+      } catch (error) {
+        console.error('Unable to sync member to realtime state.', error);
+      }
+    },
+    [],
+  );
 
   const refreshWorkspaceAvailability = useCallback(async () => {
     try {
@@ -194,10 +222,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    setMember({ id: membershipSnapshot.id, ...(membershipSnapshot.data() as Omit<Member, 'id'>) });
+    const resolvedMember = {
+      id: membershipSnapshot.id,
+      ...(membershipSnapshot.data() as Omit<Member, 'id'>),
+    } satisfies Member;
+
+    await syncMemberToRealtime({
+      workspaceId: targetWorkspaceId,
+      uid,
+      name: resolvedMember.name,
+      email: resolvedMember.email,
+      role: resolvedMember.role,
+      status: resolvedMember.status,
+    });
+
+    setMember(resolvedMember);
     setWorkspaceId(targetWorkspaceId);
     setWorkspaceExists(true);
-  }, []);
+  }, [syncMemberToRealtime]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -244,6 +286,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
     );
   }, [user, workspaceId]);
+
+  useEffect(() => {
+    if (!user || !member || !workspaceId) {
+      return;
+    }
+
+    void syncMemberToRealtime({
+      workspaceId,
+      uid: user.uid,
+      name: member.name,
+      email: member.email,
+      role: member.role,
+      status: member.status,
+    });
+  }, [member, syncMemberToRealtime, user, workspaceId]);
 
   const signInWithPassword = useCallback(
     async (email: string, password: string) => {
@@ -389,11 +446,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await followupBatch.commit();
 
       if (isRealtimeConfigured && realtimeDb) {
-        await set(ref(realtimeDb, `workspaces/${workspaceRef.id}/members/${founder.uid}`), {
+        await syncMemberToRealtime({
+          workspaceId: workspaceRef.id,
           uid: founder.uid,
           name,
           email: normalizedEmail,
           role: 'founder',
+          status: 'active',
         });
         await set(ref(realtimeDb, `workspaces/${workspaceRef.id}/channels/general`), {
           id: 'general',
@@ -420,7 +479,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       await resolveMembership(founder.uid);
     },
-    [refreshWorkspaceAvailability, resolveMembership],
+    [refreshWorkspaceAvailability, resolveMembership, syncMemberToRealtime],
   );
 
   const resolveInviteRecord = useCallback(
@@ -606,21 +665,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (isRealtimeConfigured && realtimeDb) {
-        try {
-          await set(ref(realtimeDb, `workspaces/${resolvedInvite.workspaceId}/members/${nextUser.uid}`), {
-            uid: nextUser.uid,
-            name,
-            email: normalizedEmail,
-            role: invite.role,
-          });
-        } catch (error) {
-          console.error('Unable to sync the invited member to realtime state.', error);
-        }
+        await syncMemberToRealtime({
+          workspaceId: resolvedInvite.workspaceId,
+          uid: nextUser.uid,
+          name,
+          email: normalizedEmail,
+          role: invite.role,
+          status: 'active',
+        });
       }
 
       await resolveMembership(nextUser.uid);
     },
-    [resolveInviteRecord, resolveMembership],
+    [resolveInviteRecord, resolveMembership, syncMemberToRealtime],
   );
 
   const value = useMemo(
